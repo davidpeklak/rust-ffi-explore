@@ -19,6 +19,8 @@ int serverconnect(int sockfd, int portno);
 
 int mywrite(int sockfd, char *buf);
 
+int my_errno();
+
 void *allocBuf(int len);
 
 void printP(void *ptr);

@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include "ffiexp.h"
+#include <errno.h>
 
 int mysocket () {
   return socket(AF_INET, SOCK_STREAM, 0);
@@ -29,6 +30,10 @@ int serverconnect(int sockfd, int portno) {
 
 int mywrite(int sockfd, char *buf) {
   return write(sockfd, buf, strlen(buf));
+}
+
+int my_errno() {
+  return errno;
 }
 
 void *allocBuf(int len) {

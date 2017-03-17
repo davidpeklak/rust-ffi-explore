@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include "ffiexp.h"
 #include <errno.h>
+#include <sys/event.h>
 
 int mysocket () {
   return socket(AF_INET, SOCK_STREAM, 0);
@@ -57,4 +58,8 @@ void *id(void *ptr) {
 
 int myaccept(int sockfd) {
   return accept(sockfd, NULL, NULL);
+}
+
+void my_ev_set(struct kevent *ev, int sockfd) {
+  EV_SET(ev, sockfd, EVFILT_READ, EV_ADD, 0, 0, 0);
 }

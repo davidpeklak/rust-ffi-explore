@@ -1,8 +1,10 @@
 extern crate libc;
 
-use libc::{c_int, c_uint, ssize_t};
+use libc::{c_int, c_uint, ssize_t, kevent};
 use std::result::Result;
 use std::result::Result::{Ok, Err};
+use std::mem::uninitialized;
+
 
 use std::fmt;
 
@@ -14,6 +16,8 @@ extern "C" {
     fn close(fd: c_int) -> c_int;
     fn recv(sockfd: c_int, buf: *mut u8, len: c_int, flags: c_uint) -> ssize_t;
     fn my_errno() -> c_int;
+    fn kqueue() -> c_int;
+    fn my_ev_set(ev: &mut kevent, sockfd: c_int);
 }
 
 struct SocketDescr {
@@ -21,6 +25,10 @@ struct SocketDescr {
 }
 
 struct AccSocketDescr {
+    fd: c_int
+}
+
+struct KQueueDescr {
     fd: c_int
 }
 
@@ -37,9 +45,8 @@ impl SocketDescr {
             let fd = mysocket();
             if fd == -1 {
                 Err(my_errno())
-            }
-            else {
-                Ok(SocketDescr{fd: fd})
+            } else {
+                Ok(SocketDescr { fd: fd })
             }
         }
     }
@@ -48,11 +55,9 @@ impl SocketDescr {
         unsafe {
             if serverconnect(self.fd, portno) == -1 {
                 Err(my_errno())
-            }
-            else {
+            } else {
                 Ok(())
             }
-
         }
     }
 
@@ -60,8 +65,7 @@ impl SocketDescr {
         unsafe {
             if listen(self.fd, backlog) == -1 {
                 Err(my_errno())
-            }
-            else {
+            } else {
                 Ok(())
             }
         }
@@ -69,12 +73,11 @@ impl SocketDescr {
 
     fn accept(&self) -> Result<AccSocketDescr, c_int> {
         unsafe {
-            let fd =  myaccept(self.fd);
+            let fd = myaccept(self.fd);
             if fd == -1 {
                 Err(my_errno())
-            }
-            else {
-                Ok(AccSocketDescr{fd: fd})
+            } else {
+                Ok(AccSocketDescr { fd: fd })
             }
         }
     }
@@ -99,8 +102,7 @@ impl AccSocketDescr {
             let rslt = recv(self.fd, &mut buf[0], buf.len() as c_int, 0);
             if rslt == -1 {
                 Err(my_errno())
-            }
-            else {
+            } else {
                 Ok(rslt)
             }
         }
@@ -113,7 +115,41 @@ impl fmt::Display for AccSocketDescr {
     }
 }
 
+
+impl Drop for KQueueDescr {
+    fn drop(&mut self) {
+        println!("Dropping {}", &self);
+        unsafe { close(self.fd) };
+    }
+}
+
+impl KQueueDescr {
+    fn new() -> Result<KQueueDescr, c_int> {
+        unsafe {
+            let fd = kqueue();
+            if fd == -1 {
+                Err(my_errno())
+            } else {
+                Ok(KQueueDescr { fd: fd })
+            }
+        }
+    }
+}
+
+impl fmt::Display for KQueueDescr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "(fd: {})", self.fd)
+    }
+}
+
+fn setke(ke: &mut kevent, ac: &AccSocketDescr) {
+    unsafe { my_ev_set(ke, ac.fd) }
+}
+
 fn main() {
+    KQueueDescr::new()
+        .expect("Failed to create kqueue");
+
     let s = SocketDescr::new()
         .expect("Failed to create socket");
     s.server_connect(3128)
@@ -121,7 +157,14 @@ fn main() {
     s.listen(5)
         .expect("Failed to listen to socket");
     let ac = s.accept()
-         .expect("Failed to accept connection");
+        .expect("Failed to accept connection");
+
+
+    let mut ch_list: [kevent; 1] = unsafe {[uninitialized(); 1]};
+
+    let ke: &mut kevent = &mut ch_list[0];
+
+    setke(ke, &ac);
 
     let mut buf = [0u8; 16];
 
@@ -137,5 +180,4 @@ fn main() {
 
         println!("Received: {}", s)
     }
-
 }

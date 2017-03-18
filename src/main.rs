@@ -18,6 +18,8 @@ extern "C" {
     fn my_errno() -> c_int;
     fn kqueue() -> c_int;
     fn my_ev_set(ev: &mut kevent, sockfd: c_int);
+    fn keventfn(kqfd: c_int, changelist: *const kevent, nchanges: c_int, eventlist: *mut kevent,
+                nevents: c_int) -> c_int;
 }
 
 struct SocketDescr {
@@ -147,7 +149,7 @@ fn setke(ke: &mut kevent, ac: &AccSocketDescr) {
 }
 
 fn main() {
-    KQueueDescr::new()
+    let kq = KQueueDescr::new()
         .expect("Failed to create kqueue");
 
     let s = SocketDescr::new()
@@ -160,24 +162,35 @@ fn main() {
         .expect("Failed to accept connection");
 
 
-    let mut ch_list: [kevent; 1] = unsafe {[uninitialized(); 1]};
+    let mut ch_list: [kevent; 1] = unsafe { [uninitialized(); 1] };
 
-    let ke: &mut kevent = &mut ch_list[0];
+    setke(&mut ch_list[0], &ac);
 
-    setke(ke, &ac);
+    let mut ev_list: [kevent; 1] = unsafe { [uninitialized(); 1] };
 
-    let mut buf = [0u8; 16];
+    let rslt = unsafe { keventfn(kq.fd, &ch_list[0], 1, &mut ev_list[0], 1) };
 
-    loop {
-        let length = ac.receive(&mut buf)
-            .expect("Failed to receive on socket");
+    println!("Returned from keventfn: {}", rslt);
 
-        if length == 0 {
-            break
+    if rslt == 1 {
+
+        let length = ev_list[0].data;
+
+        println!("ev_list[0].data: {}", length);
+
+        let mut buf = [0u8; 16];
+
+        loop {
+            let length = ac.receive(&mut buf)
+                .expect("Failed to receive on socket");
+
+            if length == 0 {
+                break
+            }
+
+            let s = std::str::from_utf8(&buf).unwrap();
+
+            println!("Received: {}", s)
         }
-
-        let s = std::str::from_utf8(&buf).unwrap();
-
-        println!("Received: {}", s)
     }
 }

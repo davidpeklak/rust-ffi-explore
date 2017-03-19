@@ -1,5 +1,5 @@
 [package]
-name = "ffi-explore"
+name = "ffi_explore"
 version = "0.1.0"
 authors = ["David Peklak <dpeklak@gmail.com>"]
 build = "build.rs"

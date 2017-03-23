@@ -4,7 +4,7 @@ extern crate libc;
 use ffi_explore::*;
 
 fn main() {
-    let kq = KQueueDescr::new()
+    let mut kq = KQueueDescr::new()
         .expect("Failed to create kqueue");
 
     let s = SocketDescr::new()
@@ -16,13 +16,21 @@ fn main() {
     let ac = s.accept()
         .expect("Failed to accept connection");
 
-    let mut kep = KEventParam::new(&ac);
+    println!("Accepted connection");
 
-    let rslt = kq.kevent(&mut kep);
+    kq.register_acc_sock(&ac)
+        .expect("Failed to register event");
 
-    println!("Returned from kevent: {}", rslt);
+    println!("Registered event");
 
-    if rslt == 1 {
+    match kq.fetch_event()
+        .expect("Failed to fetch event") {
+        Some(length) => println!("Fetched event. Lenght = {}", length),
+        None => println!("Did not fetch event")
+    }
+
+
+    {
 
         let mut buf = [0u8; 16];
 

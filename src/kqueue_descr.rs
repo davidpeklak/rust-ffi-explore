@@ -5,6 +5,7 @@ use std::result::Result;
 use std::result::Result::{Ok, Err};
 use std::fmt;
 use std::mem::uninitialized;
+use std::ptr::{null, null_mut};
 
 pub struct KQueueDescr {
     fd: c_int
@@ -29,8 +30,31 @@ impl KQueueDescr {
         }
     }
 
-    pub fn kevent(&self, kep: &mut KEventParam) -> c_int {
-        unsafe { keventfn(self.fd, &kep.ch_list[0], 1, &mut kep.ev_list[0], 1) }
+    pub fn register_acc_sock(&mut self, ac: &AccSocketDescr) -> Result<(), c_int> {
+        unsafe {
+            let mut ke: kevent = uninitialized();
+            my_ev_set(&mut ke, ac.fd());
+            let rslt = keventfn(self.fd, &mut ke, 1, null_mut(), 0);
+            if rslt == 0 {
+                Ok(())
+            } else {
+                Err(my_errno())
+            }
+        }
+    }
+
+    pub fn fetch_event(&mut self) -> Result<Option<c_int>, c_int> {
+        unsafe {
+            let mut ke: kevent = uninitialized();
+            let rslt = keventfn(self.fd, null(), 0, &mut ke, 1);
+            if rslt == 0 {
+                Ok(None)
+            } else if rslt == 1 {
+                Ok(Some(ke.data as c_int))
+            } else {
+                Err(my_errno())
+            }
+        }
     }
 
     pub unsafe fn fd(&self) -> c_int {
@@ -41,23 +65,5 @@ impl KQueueDescr {
 impl fmt::Display for KQueueDescr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "(fd: {})", self.fd)
-    }
-}
-
-pub struct KEventParam {
-    ch_list: [kevent; 1],
-    ev_list: [kevent; 1]
-}
-
-impl KEventParam {
-    pub fn new(ac: &AccSocketDescr) -> KEventParam {
-        let mut rslt = KEventParam {
-            ch_list: unsafe { [uninitialized(); 1] },
-            ev_list: unsafe { [uninitialized(); 1] }
-        };
-
-        unsafe { my_ev_set(&mut rslt.ch_list[0], ac.fd()) };
-
-        rslt
     }
 }

@@ -2,7 +2,7 @@ mod token;
 
 use libc::{c_int, kevent};
 use super::ffi::*;
-use super::AccSocketDescr;
+use super::{SocketDescr, Accept};
 use std::result::Result;
 use std::result::Result::{Ok, Err};
 use std::fmt;
@@ -34,7 +34,7 @@ impl KQueueDescr {
         }
     }
 
-    pub fn register_acc_sock(&mut self, ac: &AccSocketDescr, token: Token) -> Result<(), c_int> {
+    pub fn register_acc_sock(&mut self, ac: &SocketDescr<Accept>, token: Token) -> Result<(), c_int> {
         unsafe {
             let mut ke: kevent = uninitialized();
             my_ev_set(&mut ke, ac.fd(), From::from(token));

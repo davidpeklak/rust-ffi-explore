@@ -1,32 +1,46 @@
-use libc::c_int;
+use libc::{c_int, ssize_t};
 use super::ffi::*;
-use super::AccSocketDescr;
 use std::result::Result;
 use std::result::Result::{Ok, Err};
 use std::fmt;
+use std::marker::PhantomData;
 
-pub struct SocketDescr {
-    fd: c_int
+pub enum New {}
+pub enum Listen {}
+pub enum Accept {}
+
+pub struct SocketDescr<T> {
+    fd: c_int,
+    phantom: PhantomData<T>
 }
 
-impl Drop for SocketDescr {
+impl<T> Drop for SocketDescr<T> {
     fn drop(&mut self) {
         println!("Dropping {}", &self);
         unsafe { close(self.fd) };
     }
 }
 
-impl SocketDescr {
-    pub fn new() -> Result<SocketDescr, c_int> {
+impl<T> fmt::Display for SocketDescr<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "(fd: {})", self.fd)
+    }
+}
+
+impl SocketDescr<New> {
+    pub fn new() -> Result<SocketDescr<New>, c_int> {
         unsafe {
             let fd = mysocket();
             if fd == -1 {
                 Err(my_errno())
             } else {
-                Ok(SocketDescr { fd: fd })
+                Ok(SocketDescr::<New> { fd: fd, phantom: PhantomData })
             }
         }
     }
+}
+
+impl SocketDescr<New> {
 
     pub fn server_connect(&self, portno: c_int) -> Result<(), c_int> {
         unsafe {
@@ -48,20 +62,31 @@ impl SocketDescr {
         }
     }
 
-    pub fn accept(&self) -> Result<AccSocketDescr, c_int> {
+    pub fn accept(&self) -> Result<SocketDescr<Accept>, c_int> {
         unsafe {
             let fd = myaccept(self.fd);
             if fd == -1 {
                 Err(my_errno())
             } else {
-                Ok(AccSocketDescr::from_fd(fd))
+                Ok(SocketDescr::<Accept> { fd: fd, phantom: PhantomData })
             }
         }
     }
 }
 
-impl fmt::Display for SocketDescr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "(fd: {})", self.fd)
+impl SocketDescr<Accept> {
+    pub fn receive(&self, buf: &mut [u8]) -> Result<ssize_t, c_int> {
+        unsafe {
+            let rslt = recv(self.fd, &mut buf[0], buf.len() as c_int, 0);
+            if rslt == -1 {
+                Err(my_errno())
+            } else {
+                Ok(rslt)
+            }
+        }
+    }
+
+    pub unsafe fn fd(&self) -> c_int {
+        self.fd
     }
 }

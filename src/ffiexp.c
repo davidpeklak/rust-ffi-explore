@@ -60,8 +60,8 @@ int myaccept(int sockfd) {
   return accept(sockfd, NULL, NULL);
 }
 
-void my_ev_set(struct kevent *ev, int sockfd) {
-  EV_SET(ev, sockfd, EVFILT_READ, EV_ADD, 0, 0, 0);
+void my_ev_set(struct kevent *ev, int sockfd, void *tag) {
+  EV_SET(ev, sockfd, EVFILT_READ, EV_ADD, 0, 0, tag);
 }
 
 int keventfn(int kq, const struct kevent *changelist, int nchanges,

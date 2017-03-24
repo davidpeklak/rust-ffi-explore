@@ -9,7 +9,7 @@ extern "C" {
     pub fn recv(sockfd: c_int, buf: *mut u8, len: c_int, flags: c_uint) -> ssize_t;
     pub fn my_errno() -> c_int;
     pub fn kqueue() -> c_int;
-    pub fn my_ev_set(ev: &mut kevent, sockfd: c_int);
+    pub fn my_ev_set(ev: &mut kevent, sockfd: c_int, tag: c_int);
     pub fn keventfn(kqfd: c_int, changelist: *const kevent, nchanges: c_int, eventlist: *mut kevent,
                 nevents: c_int) -> c_int;
 }

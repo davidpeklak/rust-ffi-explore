@@ -18,7 +18,7 @@ fn main() {
 
     println!("Accepted connection");
 
-    kq.register_acc_sock(&ac)
+    kq.register_acc_sock(&ac, Token(1))
         .expect("Failed to register event");
 
     println!("Registered event");
